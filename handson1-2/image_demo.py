@@ -27,6 +27,7 @@ def write(x, img):
     """
     c1 = tuple(x[1:3].int())
     c2 = tuple(x[3:5].int())
+    print(c1, c2)
     cls = int(x[-1])
     label = "{0}".format(classes[cls])
     color = random.choice(colors)
@@ -34,7 +35,7 @@ def write(x, img):
     t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1 , 1)[0]
     c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
     cv2.rectangle(img, c1, c2,color, -1)
-    cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225,255,255], 1);
+    cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225,255,255], 1)
     return img
 
 def arg_parse():
@@ -84,26 +85,26 @@ if __name__ == "__main__":
 
     frames = 0
     start = time.time()
-    img = cv2.imread("./robot.png")
+    img = cv2.imread("./dog.jpg")
+    img = cv2.resize(img, (640, 480))
 
-    img, orig_im, dim = prep_image(img, inp_dim)  # NNが読み込める形式にする
-    if CUDA:
-        img = img.cuda()
-    # 出力の計算
-    output = model(Variable(img), CUDA)
-    output = write_results(output, confidence, num_classes, nms = True, nms_conf = nms_thesh)
-    if type(output) == int:
-        frames += 1
-        print("FPS of the video is {:5.2f}".format( frames / (time.time() - start)))    # FPSの計算
+    if not img is None:
+        img, orig_im, dim = prep_image(img, inp_dim)  # NNが読み込める形式にする
+        if CUDA:
+            img = img.cuda()
+        # 出力の計算
+        output = model(Variable(img), CUDA)
+        output = write_results(output, confidence, num_classes, nms = True, nms_conf = nms_thesh)
+
+        output[:,1:5] = torch.clamp(output[:,1:5], 0.0, float(inp_dim))/inp_dim
+        output[:,[1,3]] *= img.shape[1]
+        output[:,[2,4]] *= img.shape[0]
+        classes = load_classes("data/coco.names")   # クラス名の読み込み
+        colors = pkl.load(open("pallete", "rb"))    # クラスごとの色の読み込み
+        list(map(lambda x: write(x, orig_im), output))
         cv2.imshow("frame", orig_im)
 
-    output[:,1:5] = torch.clamp(output[:,1:5], 0.0, float(inp_dim))/inp_dim
-    output[:,[1,3]] *= img.shape[1]
-    output[:,[2,4]] *= img.shape[0]
-    classes = load_classes("data/coco.names")   # クラス名の読み込み
-    colors = pkl.load(open("pallete", "rb"))    # クラスごとの色の読み込み
-    list(map(lambda x: write(x, orig_im), output))
-    cv2.imshow("frame", orig_im)
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    else:
+        print("image not found.")
